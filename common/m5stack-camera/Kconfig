@@ -1,0 +1,11 @@
+menu "M5 Camera Model Select"
+
+    config M5_CAMERA_X_F
+        bool "M5 Camera Select"
+        def_bool n
+
+    config TIMER_CAMERA_X_F
+        bool "Timer Camera Select"
+        def_bool y
+
+endmenu
