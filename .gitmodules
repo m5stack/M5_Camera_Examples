@@ -1,0 +1,6 @@
+[submodule "common/esp32-camera"]
+	path = common/esp32-camera
+	url = https://github.com/m5stack/esp32-camera.git
+[submodule "common/i2c_manager"]
+	path = common/i2c_manager
+	url = https://github.com/imliubo/i2c_manager.git
