@@ -36,7 +36,7 @@
  */
 #include "bm8563.h"
 
-#define I2C_FREQ_HZ 400000
+#define I2C_FREQ_HZ 100000
 
 #define REG_CTRL_STATUS1 0x00
 #define REG_CTRL_STATUS2 0x01
