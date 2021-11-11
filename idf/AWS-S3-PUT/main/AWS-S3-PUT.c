@@ -50,8 +50,8 @@ static const char *TAG = "m5stack:wake-up";
 
 #define HASH_HEX_FORMART "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x"
 
-char* CONFIG_ESP_WIFI_SSID = "WIFI_SSID";
-char* CONFIG_ESP_WIFI_PASSWORD = "WIFI_PASSWORD";
+#define CONFIG_ESP_WIFI_SSID "WIFI_SSID"
+#define CONFIG_ESP_WIFI_PASSWORD "WIFI_PASSWORD"
 
 // without the "http"
 char* CONFIG_AMAZON_S3_HOST = "example.s3.amazonaws.com";
@@ -465,10 +465,16 @@ void app_main(void)
         ret = nvs_flash_init();
     }
     ESP_ERROR_CHECK(ret);
+
     wifi_init_sta();
     obtain_time();
     camera_config.frame_size = (framesize_t)SIZE;
     init_camera();
+
+    // flip the camera fream
+    sensor_t *s = esp_camera_sensor_get();
+    s->set_vflip(s, 1);
+
     xTaskCreate(tcp_client_task, "tcp_client_task", 1024 * 50, NULL, 4, NULL);
 }
 

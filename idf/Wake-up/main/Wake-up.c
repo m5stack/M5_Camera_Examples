@@ -54,10 +54,10 @@ void app_main()
         m5_camera_clear_rtc_timer_flag();
     }
 
-    vTaskDelay(5000 / portTICK_RATE_MS);
+    vTaskDelay(1000 / portTICK_RATE_MS);
 
-    ESP_LOGI(TAG, "Power off and wake up in 30 seconds");
-    m5_camera_set_timer(30);
+    ESP_LOGI(TAG, "Power off and wake up in 5 seconds");
+    m5_camera_set_timer(5);
     vTaskDelay(500 / portTICK_RATE_MS);
     // Power off.
     m5_camera_battery_release_power();

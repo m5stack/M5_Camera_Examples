@@ -4,3 +4,6 @@
 [submodule "common/i2c_manager"]
 	path = common/i2c_manager
 	url = https://github.com/imliubo/i2c_manager.git
+[submodule "common/libsmb2"]
+	path = common/libsmb2
+	url = git@github.com:sahlberg/libsmb2.git
