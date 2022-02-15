@@ -8,4 +8,8 @@ menu "M5 Camera Model Select"
         bool "Timer Camera Select"
         def_bool y
 
+    config UNIT_CAM
+        bool "Unit Cam Select"
+        def_bool n
+
 endmenu
