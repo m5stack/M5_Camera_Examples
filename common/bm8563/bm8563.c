@@ -28,7 +28,7 @@
 /**
  * @file bm8563.c
  *
- * ESP-IDF driver for PCF8563 real-time clock/calendar
+ * ESP-IDF driver for PCF8563 (BM8563) real-time clock/calendar
  *
  * Copyright (c) 2020 Ruslan V. Uss <unclerus@gmail.com>
  *
@@ -63,13 +63,19 @@
 
 #define BIT_CTRL_STATUS2_TIE 0
 #define BIT_CTRL_STATUS2_AIE 1
-#define BIT_CTRL_STATUS2_TF  2
-#define BIT_CTRL_STATUS2_AF  3
+#define BIT_CTRL_STATUS2_TF  3
+#define BIT_CTRL_STATUS2_AF  4
 
 #define BIT_TIMER_CTRL_TE 7
 
 #define MASK_TIMER_CTRL_TD 0x03
 #define MASK_ALARM 0x7f
+
+#define MASK_MIN  0x7f
+#define MASK_HOUR 0x3f
+#define MASK_MDAY 0x3f
+#define MASK_WDAY 0x07
+#define MASK_MON  0x1f
 
 #define BV(x) ((uint8_t)(1 << (x)))
 
@@ -154,15 +160,6 @@ esp_err_t bm8563_free_desc(i2c_dev_t *dev)
     return i2c_dev_delete_mutex(dev);
 }
 
-esp_err_t bm8563_poweron_init(i2c_dev_t *dev)
-{
-    // CHECK(write_reg(dev, 0x01, &reg_value));
-    CHECK(write_reg(dev, 0x00, 0x00));
-    CHECK(write_reg(dev, 0x01, 0x00));
-    CHECK(write_reg(dev, 0x0D, 0x00));
-    return ESP_OK;
-}
-
 esp_err_t bm8563_set_time(i2c_dev_t *dev, struct tm *time)
 {
     CHECK_ARG(dev && time);
@@ -173,8 +170,8 @@ esp_err_t bm8563_set_time(i2c_dev_t *dev, struct tm *time)
         dec2bcd(time->tm_sec),
         dec2bcd(time->tm_min),
         dec2bcd(time->tm_hour),
-        dec2bcd(time->tm_wday),
         dec2bcd(time->tm_mday),
+        dec2bcd(time->tm_wday),
         dec2bcd(time->tm_mon + 1) | (ovf ? BV(BIT_YEAR_CENTURY) : 0),
         dec2bcd(time->tm_year - (ovf ? 200 : 100))
     };
@@ -197,12 +194,12 @@ esp_err_t bm8563_get_time(i2c_dev_t *dev, struct tm *time, bool *valid)
     I2C_DEV_GIVE_MUTEX(dev);
 
     *valid = data[0] & BV(BIT_VL) ? false : true;
-    time->tm_sec = bcd2dec(data[0] & ~BV(BIT_VL));
-    time->tm_min = bcd2dec(data[1]);
-    time->tm_hour = bcd2dec(data[2]);
-    time->tm_wday = bcd2dec(data[3]);
-    time->tm_mday = bcd2dec(data[4]);
-    time->tm_mon = bcd2dec(data[5] & ~BV(BIT_YEAR_CENTURY)) - 1;
+    time->tm_sec  = bcd2dec(data[0] & ~BV(BIT_VL));
+    time->tm_min  = bcd2dec(data[1] & MASK_MIN);
+    time->tm_hour = bcd2dec(data[2] & MASK_HOUR);
+    time->tm_mday = bcd2dec(data[3] & MASK_MDAY);
+    time->tm_wday = bcd2dec(data[4] & MASK_WDAY);
+    time->tm_mon  = bcd2dec(data[5] & MASK_MON) - 1;
     time->tm_year = bcd2dec(data[6]) + (data[5] & BV(BIT_YEAR_CENTURY) ? 200 : 100);
 
     return ESP_OK;
@@ -213,10 +210,10 @@ esp_err_t bm8563_set_clkout(i2c_dev_t *dev, bm8563_clkout_freq_t freq)
     CHECK_ARG(dev);
 
     return write_reg(dev, REG_CLKOUT,
-                     freq == BM8563_DISABLED
-                     ? 0
-                     : (BV(BIT_CLKOUT_FE) | ((freq - 1) & 3))
-                    );
+            freq == BM8563_DISABLED
+                ? 0
+                : (BV(BIT_CLKOUT_FE) | ((freq - 1) & 3))
+           );
 }
 
 esp_err_t bm8563_get_clkout(i2c_dev_t *dev, bm8563_clkout_freq_t *freq)
@@ -236,7 +233,7 @@ esp_err_t bm8563_set_timer_settings(i2c_dev_t *dev, bool int_enable, bm8563_time
 
     I2C_DEV_TAKE_MUTEX(dev);
     I2C_DEV_CHECK(dev, update_reg_nolock(dev, REG_CTRL_STATUS2,
-                                         BV(BIT_CTRL_STATUS2_TIE), int_enable ? BV(BIT_CTRL_STATUS2_TIE) : 0));
+            BV(BIT_CTRL_STATUS2_TIE), int_enable ? BV(BIT_CTRL_STATUS2_TIE) : 0));
     I2C_DEV_CHECK(dev, update_reg_nolock(dev, REG_TIMER_CTRL, MASK_TIMER_CTRL_TD, clock));
     I2C_DEV_GIVE_MUTEX(dev);
 
@@ -293,7 +290,7 @@ esp_err_t bm8563_get_timer_flag(i2c_dev_t *dev, bool *timer)
 
     uint8_t v;
     CHECK(read_reg(dev, REG_CTRL_STATUS2, &v));
-    *timer = v & BV(BIT_CTRL_STATUS2_TF) ? true : false;
+    *timer = v & BIT_CTRL_STATUS2_TF ? true : false;
 
     return ESP_OK;
 }
@@ -311,7 +308,7 @@ esp_err_t bm8563_set_alarm(i2c_dev_t *dev, bool int_enable, uint32_t flags, stru
 
     I2C_DEV_TAKE_MUTEX(dev);
     I2C_DEV_CHECK(dev, update_reg_nolock(dev, REG_CTRL_STATUS2,
-                                         BV(BIT_CTRL_STATUS2_AIE), int_enable ? BV(BIT_CTRL_STATUS2_AIE) : 0));
+            BV(BIT_CTRL_STATUS2_AIE), int_enable ? BV(BIT_CTRL_STATUS2_AIE) : 0));
     uint8_t data[4] = {
         dec2bcd(time->tm_min) | (flags & BM8563_ALARM_MATCH_MIN ? 0 : BV(BIT_AE)),
         dec2bcd(time->tm_hour) | (flags & BM8563_ALARM_MATCH_HOUR ? 0 : BV(BIT_AE)),
@@ -337,18 +334,14 @@ esp_err_t bm8563_get_alarm(i2c_dev_t *dev, bool *int_enabled, uint32_t *flags, s
 
     *int_enabled = s & BV(BIT_CTRL_STATUS2_AIE) ? true : false;
     *flags = 0;
-    if (!(data[0] & BV(BIT_AE))) {
+    if (!(data[0] & BV(BIT_AE)))
         *flags |= BM8563_ALARM_MATCH_MIN;
-    }
-    if (!(data[1] & BV(BIT_AE))) {
+    if (!(data[1] & BV(BIT_AE)))
         *flags |= BM8563_ALARM_MATCH_HOUR;
-    }
-    if (!(data[2] & BV(BIT_AE))) {
+    if (!(data[2] & BV(BIT_AE)))
         *flags |= BM8563_ALARM_MATCH_DAY;
-    }
-    if (!(data[3] & BV(BIT_AE))) {
+    if (!(data[3] & BV(BIT_AE)))
         *flags |= BM8563_ALARM_MATCH_WEEKDAY;
-    }
 
     time->tm_min = bcd2dec(data[0] & MASK_ALARM);
     time->tm_hour = bcd2dec(data[1] & MASK_ALARM);
@@ -364,7 +357,7 @@ esp_err_t bm8563_get_alarm_flag(i2c_dev_t *dev, bool *alarm)
 
     uint8_t v;
     CHECK(read_reg(dev, REG_CTRL_STATUS2, &v));
-    *alarm = v & BV(BIT_CTRL_STATUS2_AF) ? true : false;
+    *alarm = v & BIT_CTRL_STATUS2_AF ? true : false;
 
     return ESP_OK;
 }
