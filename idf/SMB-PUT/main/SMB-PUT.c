@@ -54,17 +54,17 @@ void time_sync_notification_cb(struct timeval *tv)
     ESP_LOGI(TAG, "Notification of a time synchronization event");
 }
 
-#define CONFIG_ESP_WIFI_SSID "WIFI_SSID"
-#define CONFIG_ESP_WIFI_PASSWORD "WIFI_PASSWORD"
+#define CONFIG_ESP_WIFI_SSID "XXXXXXXXXXXXX"
+#define CONFIG_ESP_WIFI_PASSWORD "XXXXXXXXXXXXX"
 
 //HOST IP
-char* CONFIG_SMB_HOST = "xxx.xxx.x.xxx";
+char* CONFIG_SMB_HOST = "XXXXXXXXXXXX";
 
 //If not, you can leave it blank ""
 char* CONFIG_SMB_USER = "";
 char* CONFIG_SMB_PASSWORD = "";
 
-char* CONFIG_SMB_PATH = "path";
+char* CONFIG_SMB_PATH = "ESP32Share";
 char* PIC_NAME = "TIMER";
 
 //It is recommended to be greater than 10s
@@ -349,15 +349,15 @@ void smb_task(void *pvParameters) {
 
         ESP_LOGI(TAG, "Power off and wake up in %d seconds", INTERVAL);
         m5_camera_set_timer(INTERVAL);
-        vTaskDelay(500 / portTICK_RATE_MS);
+        vTaskDelay(500 / portTICK_PERIOD_MS);
         // Power off.
         m5_camera_battery_release_power();
-        vTaskDelay(INTERVAL*1000 / portTICK_RATE_MS);
+        vTaskDelay(INTERVAL*1000 / portTICK_PERIOD_MS);
 	}
 
     while (1) {
         /* code */
-        vTaskDelay(500 / portTICK_RATE_MS);
+        vTaskDelay(500 / portTICK_PERIOD_MS);
     }
 
     vTaskDelete(NULL);
@@ -405,14 +405,14 @@ void app_main(void)
 static void initialize_sntp(void)
 {
     ESP_LOGI(TAG, "Initializing SNTP");
-    sntp_setoperatingmode(SNTP_OPMODE_POLL);
-    sntp_setservername(0, "ntp.aliyun.com");
-    sntp_setservername(1, "ntp1.aliyun.com");
+    esp_sntp_setoperatingmode(SNTP_OPMODE_POLL);
+    esp_sntp_setservername(0, "ntp.aliyun.com");
+    esp_sntp_setservername(1, "ntp1.aliyun.com");
     sntp_set_time_sync_notification_cb(time_sync_notification_cb);
 #ifdef CONFIG_SNTP_TIME_SYNC_METHOD_SMOOTH
-    sntp_set_sync_mode(SNTP_SYNC_MODE_SMOOTH);
+    esp_sntp_set_sync_mode(SNTP_SYNC_MODE_SMOOTH);
 #endif
-    sntp_init();
+    esp_sntp_init();
 }
 
 static void obtain_time(void)

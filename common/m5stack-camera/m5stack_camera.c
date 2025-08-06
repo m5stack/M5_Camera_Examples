@@ -25,8 +25,13 @@
 #include <stdio.h>
 #include "driver/ledc.h"
 #include "driver/gpio.h"
-#include "driver/adc.h"
-#include "esp_adc_cal.h"
+
+// 移除旧的ADC头文件
+// #include "driver/adc.h"
+// #include "esp_adc_cal.h"
+#include "esp_adc/adc_oneshot.h"
+#include "esp_adc/adc_cali.h"
+#include "esp_adc/adc_cali_scheme.h"
 #include "esp_log.h"
 
 #include "m5stack_camera.h"
@@ -43,13 +48,15 @@ const char *TAG = "M5Camera";
 
 #ifdef CONFIG_TIMER_CAMERA_X_F
 i2c_dev_t bm8563_dev;  // thread safe
-static esp_adc_cal_characteristics_t *adc_chars;
+// static esp_adc_cal_characteristics_t *adc_chars;
+static adc_oneshot_unit_handle_t adc1_handle;
+static adc_cali_handle_t adc1_cali_handle = NULL;
+static bool do_calibration = false;
 #define DEFAULT_VREF    3600        //Use adc2_vref_to_gpio() to obtain a better estimate
 #define NO_OF_SAMPLES   64          //Multisampling
 #endif
 
-esp_err_t m5_camera_init(void)
-{
+esp_err_t m5_camera_init(void){
     esp_err_t ret = ESP_FAIL;
     ret = m5_camera_led_init();
 #ifdef CONFIG_TIMER_CAMERA_X_F
@@ -60,119 +67,163 @@ esp_err_t m5_camera_init(void)
     return ret;
 }
 
-esp_err_t m5_camera_led_init(void)
-{
-    /*
-     * Prepare and set configuration of timers
-     * that will be used by LED Controller
-     */
+// Initialize the LED for M5Camera
+esp_err_t m5_camera_led_init(void){
     ledc_timer_config_t ledc_timer = {
-        .duty_resolution = LEDC_TIMER_13_BIT, // resolution of PWM duty
-        .freq_hz = 5000,                      // frequency of PWM signal
-        .speed_mode = LEDC_HIGH_SPEED_MODE,   // timer mode
-        .timer_num = LEDC_TIMER_0,            // timer index
-        .clk_cfg = LEDC_AUTO_CLK,             // Auto select the source clock
+        .duty_resolution = LEDC_TIMER_13_BIT,
+        .freq_hz = 5000,
+        .speed_mode = LEDC_LOW_SPEED_MODE,
+        .timer_num = LEDC_TIMER_0,
+        .clk_cfg = LEDC_AUTO_CLK,
     };
-    ledc_timer_config(&ledc_timer);
-    /*
-     * Prepare individual configuration
-     * for each channel of LED Controller
-     * by selecting:
-     * - controller's channel number
-     * - output duty cycle, set initially to 0
-     * - GPIO number where LED is connected to
-     * - speed mode, either high or low
-     * - timer servicing selected channel
-     *   Note: if different channels use one timer,
-     *         then frequency and bit_num of these channels
-     *         will be the same
-     */
-    ledc_channel_config_t ledc_channel[1] = {
-        {
-            .speed_mode = LEDC_HIGH_SPEED_MODE,
-            .channel    = BLINK_LED_LEDC_CHANNEL,
-            .timer_sel  = LEDC_TIMER_0,
-            .intr_type  = LEDC_INTR_DISABLE,
-            .gpio_num   = BLINK_LED_PIN,
-            .duty       = 0,
-            .hpoint     = 0,
-        }
+    esp_err_t ret = ledc_timer_config(&ledc_timer);
+    if (ret != ESP_OK) {
+        return ret;
+    }
+
+    ledc_channel_config_t ledc_channel = {
+        .channel    = BLINK_LED_LEDC_CHANNEL,
+        .duty       = 0,
+        .gpio_num   = BLINK_LED_PIN,
+        .speed_mode = LEDC_LOW_SPEED_MODE,
+        .hpoint     = 0,
+        .timer_sel  = LEDC_TIMER_0
     };
-
-    // Set LED Controller with previously prepared configuration
-    ledc_channel_config(&ledc_channel[0]);
-
-    // Initialize fade service.
-    return ledc_fade_func_install(0);
+    return ledc_channel_config(&ledc_channel);
 }
 
-esp_err_t m5_camera_led_set_brightness(uint8_t bn)
-{
-    uint32_t duty = (uint32_t)((bn / 100.0) * 8192.0);
-    return m5_camera_led_set_update_duty(duty);
+//  Set LED brightness
+esp_err_t m5_camera_led_set_brightness(uint8_t brightness){
+    uint32_t duty = (8191 * brightness) / 255; // 13-bit resolution
+    return ledc_set_duty(LEDC_LOW_SPEED_MODE, BLINK_LED_LEDC_CHANNEL, duty);
 }
 
+// Update LED duty cycle
 esp_err_t m5_camera_led_set_update_duty(uint32_t duty)
 {
-    /*
-     * PWM
-     * frequency is 5Khz
-     * duty resolution is LEDC_TIMER_13_BIT
-     * duty range: 0 ~ 8192
-     */
-    ledc_set_duty(LEDC_HIGH_SPEED_MODE, BLINK_LED_LEDC_CHANNEL, duty);
-    return ledc_update_duty(LEDC_HIGH_SPEED_MODE, BLINK_LED_LEDC_CHANNEL);
+    esp_err_t ret = ledc_set_duty(LEDC_LOW_SPEED_MODE, BLINK_LED_LEDC_CHANNEL, duty);
+    if (ret == ESP_OK) {
+        ret = ledc_update_duty(LEDC_LOW_SPEED_MODE, BLINK_LED_LEDC_CHANNEL);
+    }
+    return ret;
 }
 
+// Start LED with fade time
 esp_err_t m5_camera_led_start_with_fade_time(uint32_t duty, int time)
 {
-    ledc_set_fade_with_time(LEDC_HIGH_SPEED_MODE,
-                            BLINK_LED_LEDC_CHANNEL, duty, time);
-    return ledc_fade_start(LEDC_HIGH_SPEED_MODE,
-                           BLINK_LED_LEDC_CHANNEL, LEDC_FADE_NO_WAIT);
+    return ledc_set_duty_and_update(LEDC_LOW_SPEED_MODE, BLINK_LED_LEDC_CHANNEL, duty, time);
 }
 
 #ifdef CONFIG_TIMER_CAMERA_X_F
-esp_err_t m5_camera_battery_init(void)
+
+// adc 标定校准初始化
+static esp_err_t adc_calibration_init(void)
 {
-    /*
-     * Battery manager pin:
-     * High level is enable battery power(power on)
-     * Low level will disable battery power(power off)
+    esp_err_t ret = ESP_FAIL;
+    bool calibrated = false;
+    
+#if ADC_CALI_SCHEME_CURVE_FITTING_SUPPORTED
+    if (!calibrated) {
+        ESP_LOGI(TAG, "calibration scheme version is Curve Fitting");
+        adc_cali_curve_fitting_config_t cali_config = {
+            .unit_id = ADC_UNIT_1,
+            .atten = ADC_ATTEN_DB_12,
+            .bitwidth = ADC_BITWIDTH_DEFAULT,
+        };
+        ret = adc_cali_create_scheme_curve_fitting(&cali_config, &adc1_cali_handle);
+        if (ret == ESP_OK) {
+            calibrated = true;
+        }
+    }
+#endif    
 
-     * Boot sequence:
-     * 1. RTC or BTN -> wake up (timer or alarm or button)
-     * 2. Power on -> hold battery pin(set high level)
-     * 3. Clear RTC timer or alarm flag for next time power off
-     */
-    gpio_pad_select_gpio(BAT_HOLD_PIN);
-    gpio_set_direction(BAT_HOLD_PIN, GPIO_MODE_OUTPUT);
+#if ADC_CALI_SCHEME_LINE_FITTING_SUPPORTED
+    if (!calibrated) {
+        ESP_LOGI(TAG, "calibration scheme version is Line Fitting");
+        adc_cali_line_fitting_config_t cali_config = {
+            .unit_id = ADC_UNIT_1,
+            .atten = ADC_ATTEN_DB_12,
+            .bitwidth = ADC_BITWIDTH_DEFAULT,
+        };
+        ret = adc_cali_create_scheme_line_fitting(&cali_config, &adc1_cali_handle);
+        if (ret == ESP_OK) {
+            calibrated = true;
+        }
+    }
+#endif
 
-    adc1_config_width(ADC_WIDTH_BIT_12);
-    adc1_config_channel_atten(BAT_ADC_CHANNEL, ADC_ATTEN_DB_11);
-    //Characterize ADC
-    adc_chars = calloc(1, sizeof(esp_adc_cal_characteristics_t));
-    esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_DB_11, ADC_WIDTH_BIT_12, DEFAULT_VREF, adc_chars);
-    return ESP_OK;
+    do_calibration = calibrated;
+    return ret;
 }
 
+// 电池初始化
+esp_err_t m5_camera_battery_init(void)
+{
+    esp_err_t ret = ESP_OK;
+    
+    // 配置电池保持引脚
+    gpio_config_t io_conf = {};
+    io_conf.intr_type = GPIO_INTR_DISABLE;
+    io_conf.mode = GPIO_MODE_OUTPUT;
+    io_conf.pin_bit_mask = (1ULL << BAT_HOLD_PIN);
+    io_conf.pull_down_en = 0;
+    io_conf.pull_up_en = 0;
+    gpio_config(&io_conf);
+    
+    // 初始化ADC1
+    adc_oneshot_unit_init_cfg_t init_config1 = {
+        .unit_id = ADC_UNIT_1,
+    };
+    ret = adc_oneshot_new_unit(&init_config1, &adc1_handle);
+    if (ret != ESP_OK) {
+        return ret;
+    }
+
+    // 配置ADC1通道
+    adc_oneshot_chan_cfg_t config = {
+        .bitwidth = ADC_BITWIDTH_DEFAULT,
+        .atten = ADC_ATTEN_DB_12,
+    };
+    ret = adc_oneshot_config_channel(adc1_handle, BAT_ADC_CHANNEL, &config);
+    if (ret != ESP_OK) {
+        return ret;
+    }
+
+    // 初始化ADC校准
+    ret = adc_calibration_init();
+    
+    return ret;
+}
+
+// 获取电池电压
 int m5_camera_battery_voltage(void)
 {
+    int adc_raw = 0;
+    int voltage = 0;
     uint32_t adc_reading = 0;
-    //Multisampling
+    
+    // 多次采样取平均
     for (int i = 0; i < NO_OF_SAMPLES; i++) {
-        adc_reading += adc1_get_raw((adc1_channel_t)BAT_ADC_CHANNEL);
+        ESP_ERROR_CHECK(adc_oneshot_read(adc1_handle, BAT_ADC_CHANNEL, &adc_raw));
+        adc_reading += adc_raw;
     }
     adc_reading /= NO_OF_SAMPLES;
-    //Convert adc_reading to voltage in mV
-    uint32_t voltage = (uint32_t)(esp_adc_cal_raw_to_voltage(adc_reading, adc_chars) / 0.661);
-    // printf("Raw: %d\tVoltage: %dmV\n", adc_reading, voltage);
-    return voltage;
+    
+    // 转换为电压值
+    if (do_calibration) {
+        ESP_ERROR_CHECK(adc_cali_raw_to_voltage(adc1_cali_handle, adc_reading, &voltage));
+    } else {
+        // 如果没有校准，使用默认计算
+        voltage = adc_reading * DEFAULT_VREF / 4096;
+    }
+    
+    // 电池电压需要乘以分压比（通常是2）
+    return voltage * 2;
 }
 
 esp_err_t m5_camera_battery_set_level(bool level)
 {
-    return gpio_set_level(BAT_HOLD_PIN, level);
+    return gpio_set_level(BAT_HOLD_PIN, level ? 1 : 0);
 }
 
 esp_err_t m5_camera_battery_hold_power(void)
@@ -187,9 +238,13 @@ esp_err_t m5_camera_battery_release_power(void)
 
 esp_err_t m5_camera_button_init(void)
 {
-    gpio_pad_select_gpio(PWR_BTN_PIN);
-    gpio_set_direction(PWR_BTN_PIN, GPIO_MODE_INPUT);
-    return gpio_set_pull_mode(PWR_BTN_PIN, GPIO_PULLUP_ONLY);
+    gpio_config_t io_conf = {};
+    io_conf.intr_type = GPIO_INTR_DISABLE;
+    io_conf.mode = GPIO_MODE_INPUT;
+    io_conf.pin_bit_mask = (1ULL << PWR_BTN_PIN);
+    io_conf.pull_down_en = 0;
+    io_conf.pull_up_en = 1;  // 使能上拉
+    return gpio_config(&io_conf);
 }
 
 int m5_camera_button_get_level(void)
@@ -233,4 +288,5 @@ esp_err_t m5_camera_clear_rtc_timer_flag(void)
 {
     return bm8563_clear_timer_flag(&bm8563_dev);
 }
+
 #endif

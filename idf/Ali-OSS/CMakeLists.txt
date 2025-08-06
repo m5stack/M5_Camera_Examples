@@ -6,4 +6,4 @@ cmake_minimum_required(VERSION 3.5)
 
 set(EXTRA_COMPONENT_DIRS ./../../common/esp32-camera ./../../common/i2c_manager ./../../common/bm8563 ./../../common/m5stack-camera)
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
-project(Ali-OSS)
+project(Ali-OSS-fix)

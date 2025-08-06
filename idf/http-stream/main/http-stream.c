@@ -42,8 +42,8 @@
 #include "bm8563.h"
 #include "m5stack_camera.h"
 
-#define WIFI_SSID "XXXXXXXXXXXX"        // <<<<< change here
-#define WIFI_PSWD "XXXXXXXXXXXX"        // <<<<< change here
+#define WIFI_SSID "XXXXXXXXXXX"        // <<<<< change here
+#define WIFI_PSWD "XXXXXXXXXXX"        // <<<<< change here
 #define WIFI_RETRY_NUM 10
 
 #define PART_BOUNDARY "123456789000000000000987654321"
@@ -88,7 +88,7 @@ static camera_config_t camera_config = {
     .ledc_channel = LEDC_CHANNEL_0,
 
     .pixel_format = PIXFORMAT_JPEG, //YUV422,GRAYSCALE,RGB565,JPEG
-    .frame_size = FRAMESIZE_VGA,    //QQVGA-UXGA Do not use sizes above QVGA when not JPEG
+    .frame_size = FRAMESIZE_320X320,    //QQVGA-UXGA Do not use sizes above QVGA when not JPEG
 
     .jpeg_quality = 12, //0-63 lower number means higher quality
     .fb_count = 2,       //if more than one, i2s runs in continuous mode. Use only with JPEG
@@ -259,7 +259,7 @@ esp_err_t jpg_stream_httpd_handler(httpd_req_t *req)
         int64_t frame_time = fr_end - last_frame;
         last_frame = fr_end;
         frame_time /= 1000;
-        ESP_LOGI(TAG, "MJPG: %uKB %ums (%.1ffps)",
+        ESP_LOGI(TAG, "MJPG: %luKB %lums (%.1ffps)",
                  (uint32_t)(_jpg_buf_len / 1024),
                  (uint32_t)frame_time, 1000.0 / (uint32_t)frame_time);
     }
