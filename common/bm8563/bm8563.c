@@ -145,11 +145,16 @@ esp_err_t bm8563_init_desc(i2c_dev_t *dev, i2c_port_t port, gpio_num_t sda_gpio,
 
     dev->port = port;
     dev->addr = BM8563_I2C_ADDR;
-    dev->cfg.sda_io_num = sda_gpio;
-    dev->cfg.scl_io_num = scl_gpio;
-#if HELPER_TARGET_IS_ESP32
-    dev->cfg.master.clk_speed = I2C_FREQ_HZ;
-#endif
+    dev->dev_handle = NULL; // 将由i2c_manager设置
+    dev->timeout_ticks = pdMS_TO_TICKS(1000); // 设置默认超时
+    
+    // 通过i2c_manager初始化I2C总线
+    // 这里假设i2c_manager会处理GPIO配置
+    esp_err_t ret = i2c_manager_init(port);
+    if (ret != ESP_OK && ret != ESP_ERR_INVALID_STATE) { // 允许重复初始化
+        return ret;
+    }
+    
     return i2c_dev_create_mutex(dev);
 }
 

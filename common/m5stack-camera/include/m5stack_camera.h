@@ -70,7 +70,7 @@
 
 #define BAT_HOLD_PIN 33
 #define BAT_ADC_PIN  38
-#define BAT_ADC_CHANNEL ADC1_CHANNEL_2
+#define BAT_ADC_CHANNEL ADC_CHANNEL_2
 
 #define PWR_BTN_PIN  37
 
@@ -80,7 +80,7 @@
 
 #define BAT_HOLD_PIN 33
 #define BAT_ADC_PIN  38
-#define BAT_ADC_CHANNEL ADC1_CHANNEL_2
+#define BAT_ADC_CHANNEL ADC_CHANNEL_2
 
 #define PWR_BTN_PIN  37
 

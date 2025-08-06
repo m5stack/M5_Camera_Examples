@@ -1,15 +1,26 @@
 menu "M5 Camera Model Select"
 
-    config M5_CAMERA_X_F
-        bool "M5 Camera Select"
-        def_bool n
+    choice M5_CAMERA_MODEL
+        prompt "Select M5 Camera Model"
+        default TIMER_CAMERA_X_F
+        help
+            Select which M5 Camera model to use
 
-    config TIMER_CAMERA_X_F
-        bool "Timer Camera Select"
-        def_bool y
+        config M5_CAMERA_X_F
+            bool "M5 Camera X/F"
+            help
+                M5 Camera X/F model
 
-    config UNIT_CAM
-        bool "Unit Cam Select"
-        def_bool n
+        config TIMER_CAMERA_X_F
+            bool "Timer Camera X/F"
+            help
+                Timer Camera X/F model
+
+        config UNIT_CAM
+            bool "Unit Cam"
+            help
+                Unit Cam model
+
+    endchoice
 
 endmenu

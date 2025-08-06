@@ -4,6 +4,6 @@
 # CMakeLists in this exact order for cmake to work correctly
 cmake_minimum_required(VERSION 3.5)
 
-set(EXTRA_COMPONENT_DIRS ./../../common/esp32-camera ./../../common/i2c_manager ./../../common/bm8563 ./../../common/m5stack-camera ./../../common/iot-button)
+set(EXTRA_COMPONENT_DIRS ./../../common/esp32-camera ./../../common/i2c_manager ./../../common/bm8563 ./../../common/m5stack-camera)
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 project(wireless-send)

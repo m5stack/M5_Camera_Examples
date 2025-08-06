@@ -43,6 +43,7 @@
 #include <stdbool.h>
 #include <time.h>
 #include <esp_err.h>
+#include <i2c_manager.h>
 
 #ifdef __cplusplus
 extern "C" {

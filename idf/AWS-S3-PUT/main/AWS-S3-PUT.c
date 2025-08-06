@@ -427,16 +427,16 @@ void tcp_client_task(void *pvParameters)
 
         ESP_LOGI(TAG, "Power off and wake up in %d seconds", INTERVAL);
         m5_camera_set_timer(INTERVAL);
-        vTaskDelay(500 / portTICK_RATE_MS);
+        vTaskDelay(500 / portTICK_PERIOD_MS);
         // Power off.
         m5_camera_battery_release_power();
-        vTaskDelay(INTERVAL*1000 / portTICK_RATE_MS);
+        vTaskDelay(INTERVAL*1000 / portTICK_PERIOD_MS);
 
     }
 
     while (1) {
         /* code */
-        vTaskDelay(500 / portTICK_RATE_MS);
+        vTaskDelay(500 / portTICK_PERIOD_MS);
     }
 
     vTaskDelete(NULL);

@@ -45,8 +45,8 @@
 
 static const char *TAG = "m5stack:wireless-send";
 
-#define WIFI_SSID "XXXXXXXXXXXX"        // <<<<< change here
-#define WIFI_PSWD "XXXXXXXXXXXX"        // <<<<< change here
+#define WIFI_SSID "M5Stack"        // <<<<< change here
+#define WIFI_PSWD "m5office888"        // <<<<< change here
 #define WIFI_RETRY_NUM 10
 
 #if defined(CONFIG_EXAMPLE_IPV4)

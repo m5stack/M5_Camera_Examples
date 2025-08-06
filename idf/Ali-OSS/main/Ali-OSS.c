@@ -223,17 +223,40 @@ static void time_sync_notification_cb(struct timeval *tv)
     ESP_LOGI(TAG, "Notification of a time synchronization event");
 }
 
-static void initialize_sntp(void)
+void initialize_sntp(void)
 {
     ESP_LOGI(TAG, "Initializing SNTP");
-    sntp_setoperatingmode(SNTP_OPMODE_POLL);
-    sntp_setservername(0, NTP_SERVER_0);
-    sntp_setservername(1, NTP_SERVER_1);
-    sntp_set_time_sync_notification_cb(time_sync_notification_cb);
-#ifdef CONFIG_SNTP_TIME_SYNC_METHOD_SMOOTH
-    sntp_set_sync_mode(SNTP_SYNC_MODE_SMOOTH);
-#endif
-    sntp_init();
+    
+    // 旧代码：
+    // sntp_setoperatingmode(SNTP_OPMODE_POLL);
+    // sntp_setservername(0, NTP_SERVER_0);
+    // sntp_setservername(1, NTP_SERVER_1);
+    // sntp_init();
+    
+    // 新代码：
+    esp_sntp_setoperatingmode(SNTP_OPMODE_POLL);
+    esp_sntp_setservername(0, NTP_SERVER_0);
+    esp_sntp_setservername(1, NTP_SERVER_1);
+    esp_sntp_init();
+    
+    // 等待时间同步
+    time_t now = 0;
+    struct tm timeinfo = { 0 };
+    int retry = 0;
+    const int retry_count = 15;
+
+    while (timeinfo.tm_year < (2016 - 1900) && ++retry < retry_count) {
+        ESP_LOGI(TAG, "Waiting for system time to be set... (%d/%d)", retry, retry_count);
+        vTaskDelay(2000 / portTICK_PERIOD_MS);
+        time(&now);
+        localtime_r(&now, &timeinfo);
+    }
+    
+    if (retry >= retry_count) {
+        ESP_LOGW(TAG, "Failed to get time from NTP server");
+    } else {
+        ESP_LOGI(TAG, "Time synchronized successfully");
+    }
 }
 
 static void obtain_time(void)
@@ -355,7 +378,7 @@ void oss_put_task(void *pvParameters)
         }
         esp_camera_fb_return(fb);
 
-        vTaskDelay(5000 / portTICK_RATE_MS);
+        vTaskDelay(5000 / portTICK_PERIOD_MS);
     }
 
     vTaskDelete(NULL);
