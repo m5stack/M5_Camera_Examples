@@ -3,7 +3,7 @@
 	url = https://github.com/m5stack/esp32-camera.git
 [submodule "common/i2c_manager"]
 	path = common/i2c_manager
-	url = https://github.com/imliubo/i2c_manager.git
+	url = https://github.com/m5stack/i2c_manager.git
 [submodule "common/libsmb2"]
 	path = common/libsmb2
-	url = https://github.com/sahlberg/libsmb2.git
+	url = https://github.com/m5stack/libsmb2.git
