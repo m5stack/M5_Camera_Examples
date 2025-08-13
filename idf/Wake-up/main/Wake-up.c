@@ -24,7 +24,7 @@
 
 #include <stdio.h>
 #include <esp_log.h>
-
+#include "esp_sleep.h"
 #include "m5stack_camera.h"
 
 static const char *TAG = "m5stack:wake-up";
@@ -35,32 +35,32 @@ void app_main()
     // initialize LED, Button, BAT, BM8563
     m5_camera_init();
 #ifdef CONFIG_TIMER_CAMERA_X_F
-    // Power on
-    // m5_camera_battery_hold_power();
-    // Check battery voltage
+    esp_sleep_wakeup_cause_t wakeup_reason = esp_sleep_get_wakeup_cause();
+    switch (wakeup_reason) {
+        case ESP_SLEEP_WAKEUP_TIMER:
+            ESP_LOGI(TAG, "Woke up from deep sleep (TIMER)");
+            break;
+        case ESP_SLEEP_WAKEUP_UNDEFINED:
+            ESP_LOGI(TAG, "Power-on reset / external reset");
+            break;
+        default:
+            ESP_LOGI(TAG, "Wakeup from other cause: %d", wakeup_reason);
+            break;
+    }
+
     m5_camera_battery_hold_power();
-    // Check battery voltage
     ESP_LOGI(TAG, "Battery voltage: %dmV", m5_camera_battery_voltage());
-    // Turn on LED
+
     m5_camera_led_set_brightness(10);
 
-    if (m5_camera_check_rtc_alarm_flag()) {
-        ESP_LOGI(TAG, "Clear alarm flag");
-        m5_camera_clear_rtc_alarm_flag();
-    }
+    vTaskDelay(pdMS_TO_TICKS(1000));
 
-    if (m5_camera_check_rtc_timer_flag()) {
-        ESP_LOGI(TAG, "Clear timer flag");
-        m5_camera_clear_rtc_timer_flag();
-    }
+    // 设置深度睡眠定时器 — 5秒后唤醒
+    ESP_LOGI(TAG, "Entering deep sleep for 5 seconds...");
+    esp_sleep_enable_timer_wakeup(5 * 1000000ULL); // 单位是微秒
 
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
-
-    ESP_LOGI(TAG, "Power off and wake up in 5 seconds");
-    m5_camera_set_timer(5);
-    vTaskDelay(500 / portTICK_PERIOD_MS);
-    // Power off.
-    m5_camera_battery_release_power();
+    // 进入深度睡眠
+    esp_deep_sleep_start();
 #endif
 
 }
