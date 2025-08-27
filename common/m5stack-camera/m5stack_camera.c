@@ -69,6 +69,7 @@ esp_err_t m5_camera_init(void){
 
 // Initialize the LED for M5Camera
 esp_err_t m5_camera_led_init(void){
+    // 配置LEDC定时器和通道
     ledc_timer_config_t ledc_timer = {
         .duty_resolution = LEDC_TIMER_13_BIT,
         .freq_hz = 5000,
@@ -78,6 +79,7 @@ esp_err_t m5_camera_led_init(void){
     };
     esp_err_t ret = ledc_timer_config(&ledc_timer);
     if (ret != ESP_OK) {
+        ESP_LOGI(TAG, "ledc_timer_config failed");
         return ret;
     }
 
@@ -89,13 +91,31 @@ esp_err_t m5_camera_led_init(void){
         .hpoint     = 0,
         .timer_sel  = LEDC_TIMER_0
     };
-    return ledc_channel_config(&ledc_channel);
+    ret = ledc_fade_func_install(0);
+    if (ret != ESP_OK) {
+        ESP_LOGI(TAG, "ledc_fade_func_install failed");
+        return ret;
+    }
+
+    ret = ledc_channel_config(&ledc_channel);
+    if (ret != ESP_OK) {
+        ESP_LOGI(TAG, "ledc_channel_config failed");
+        return ret;
+    }
+    return ESP_OK;
 }
 
 //  Set LED brightness
 esp_err_t m5_camera_led_set_brightness(uint8_t brightness){
-    uint32_t duty = (8191 * brightness) / 255; // 13-bit resolution
-    return ledc_set_duty(LEDC_LOW_SPEED_MODE, BLINK_LED_LEDC_CHANNEL, duty);
+    esp_err_t ret = ESP_FAIL;
+    uint32_t duty = ((uint32_t)brightness * 8191u + 127u) / 255u;
+    ret = ledc_set_duty_and_update(LEDC_LOW_SPEED_MODE, BLINK_LED_LEDC_CHANNEL, duty, 0);
+    if (ret != ESP_OK)
+    {
+        ESP_LOGI(TAG, "ledc_set_duty_and_update failed, duty: %d", duty);
+        return ret;
+    }
+    return ESP_OK;
 }
 
 // Update LED duty cycle
