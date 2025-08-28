@@ -112,7 +112,7 @@ esp_err_t m5_camera_led_set_brightness(uint8_t brightness){
     ret = ledc_set_duty_and_update(LEDC_LOW_SPEED_MODE, BLINK_LED_LEDC_CHANNEL, duty, 0);
     if (ret != ESP_OK)
     {
-        ESP_LOGI(TAG, "ledc_set_duty_and_update failed, duty: %d", duty);
+        ESP_LOGI(TAG, "ledc_set_duty_and_update failed, duty: %lu", duty);
         return ret;
     }
     return ESP_OK;
