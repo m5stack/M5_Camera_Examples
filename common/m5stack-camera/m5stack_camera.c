@@ -253,7 +253,8 @@ esp_err_t m5_camera_battery_hold_power(void)
 
 esp_err_t m5_camera_battery_release_power(void)
 {
-    return gpio_set_level(BAT_HOLD_PIN, 0);
+    esp_err_t ret = gpio_set_level(BAT_HOLD_PIN, 0);
+    return ret;
 }
 
 esp_err_t m5_camera_button_init(void)
@@ -294,6 +295,7 @@ esp_err_t m5_camera_set_timer(int seconds)
         bm8563_set_timer_settings(&bm8563_dev, true, BM8563_TIMER_1HZ);
         bm8563_set_timer_value(&bm8563_dev, (uint8_t)seconds);
     }
+    bm8563_clear_timer_flag(&bm8563_dev);
     return bm8563_start_timer(&bm8563_dev);
 }
 
@@ -307,6 +309,13 @@ bool m5_camera_check_rtc_timer_flag(void)
 esp_err_t m5_camera_clear_rtc_timer_flag(void)
 {
     return bm8563_clear_timer_flag(&bm8563_dev);
+}
+
+void m5_camera_timer_sleep(int seconds)
+{
+    bm8563_disable_irq(&bm8563_dev);
+    m5_camera_set_timer(seconds);
+    m5_camera_battery_release_power();
 }
 
 #endif

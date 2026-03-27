@@ -115,5 +115,7 @@ esp_err_t m5_camera_set_timer(int seconds);
 bool m5_camera_check_rtc_timer_flag(void);
 esp_err_t m5_camera_clear_rtc_timer_flag(void);
 
+void m5_camera_timer_sleep(int seconds);
+
 
 #endif

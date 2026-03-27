@@ -42,8 +42,8 @@
 #include "bm8563.h"
 #include "m5stack_camera.h"
 
-#define WIFI_SSID "XXXXXXXXXXX"        // <<<<< change here
-#define WIFI_PSWD "XXXXXXXXXXX"        // <<<<< change here
+#define WIFI_SSID "********"        // <<<<< change here
+#define WIFI_PSWD "********"        // <<<<< change here
 #define WIFI_RETRY_NUM 10
 
 #define PART_BOUNDARY "123456789000000000000987654321"
@@ -331,5 +331,6 @@ void app_main()
     } else {
         ESP_LOGI(TAG, "Error starting server!");
     }
-    ESP_LOGI(TAG, "Http Server OK!");
+    ESP_LOGI(TAG, "HTTP server OK! Open http://<IP>/stream in your browser to view the stream");
+
 }

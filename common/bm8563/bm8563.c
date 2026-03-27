@@ -373,3 +373,28 @@ esp_err_t bm8563_clear_alarm_flag(i2c_dev_t *dev)
 
     return update_reg(dev, REG_CTRL_STATUS2, BV(BIT_CTRL_STATUS2_AF), 0);
 }
+
+esp_err_t bm8563_disable_irq(i2c_dev_t *dev)
+{
+    CHECK_ARG(dev);
+
+    const uint8_t alarm_disable[4] = { 0x80, 0x80, 0x80, 0x80 };
+    esp_err_t ret;
+
+    I2C_DEV_TAKE_MUTEX(dev);
+
+    // disable alarm (0x09~0x0C)
+    ret = i2c_dev_write_reg(dev, REG_ALARM_MIN, alarm_disable, sizeof(alarm_disable));
+    if (ret != ESP_OK) goto done;
+
+    // disable timer (0x0E)
+    ret = write_reg_nolock(dev, REG_TIMER_CTRL, 0x00);
+    if (ret != ESP_OK) goto done;
+
+    // clear flags + disable INT enables (0x01)
+    ret = write_reg_nolock(dev, REG_CTRL_STATUS2, 0x00);
+
+done:
+    I2C_DEV_GIVE_MUTEX(dev);
+    return ret;
+}

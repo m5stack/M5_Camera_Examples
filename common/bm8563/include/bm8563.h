@@ -248,6 +248,14 @@ esp_err_t bm8563_get_alarm_flag(i2c_dev_t *dev, bool *alarm);
  */
 esp_err_t bm8563_clear_alarm_flag(i2c_dev_t *dev);
 
+/**
+ * @brief Disable all interrupts and clear flags
+ *
+ * @param dev I2C device descriptor
+ * @return `ESP_OK` on success
+ */
+esp_err_t bm8563_disable_irq(i2c_dev_t *dev);
+
 #ifdef __cplusplus
 }
 #endif
